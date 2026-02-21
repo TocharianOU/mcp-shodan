@@ -1,6 +1,23 @@
-node_modules/
+# Build output
+dist/
 build/
-*.log
+
+# Dependencies
+node_modules/
+
+# Environment
 .env
-.env.local
-.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Release artifacts
+*.tar.gz
+*.sha256
+*.sha512
+
+# Editor
+.DS_Store
+.vscode/
+.idea/

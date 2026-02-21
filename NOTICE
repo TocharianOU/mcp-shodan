@@ -1,0 +1,11 @@
+This product includes software developed by TocharianOU and contributors.
+Copyright (c) 2024 TocharianOU
+
+Licensed under the MIT License.
+
+This product uses the Shodan API.
+Shodan is a registered trademark of Shodan (https://www.shodan.io).
+This project is community-maintained and is not an official product of Shodan.
+
+This project is a fork of BurtTheCoder/mcp-shodan (https://github.com/BurtTheCoder/mcp-shodan),
+also licensed under MIT.
