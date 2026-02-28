@@ -5,6 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { AxiosInstance } from 'axios';
 import { z } from 'zod';
 import { handleCveLookup, handleCpeLookup, handleCvesByProduct } from './handlers/vuln.js';
+import { checkTokenLimit } from './utils/token-limiter.js';
 
 const CveLookupSchema = z.object({
   cve: z
@@ -26,6 +27,11 @@ const CpeLookupSchema = z.object({
     .optional()
     .default(1000)
     .describe('Maximum number of CPEs to return (max 1000)'),
+  break_token_rule: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Set to true to bypass token limits in critical situations. Use sparingly to avoid context overflow.'),
 });
 
 // Base object schema (without refinements) – used for .shape in tool registration
@@ -60,6 +66,11 @@ const CvesByProductBaseSchema = z.object({
     .string()
     .optional()
     .describe('End date for filtering CVEs (format: YYYY-MM-DDTHH:MM:SS)'),
+  break_token_rule: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Set to true to bypass token limits in critical situations. Use sparingly to avoid context overflow.'),
 });
 
 // Full schema with mutual-exclusion refinements – used for validation at parse time
@@ -75,7 +86,8 @@ const CvesByProductSchema = CvesByProductBaseSchema.refine(
  */
 export async function registerVulnTools(
   server: McpServer,
-  cvedbClient: AxiosInstance
+  cvedbClient: AxiosInstance,
+  maxTokenCall = 20000
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const registerTool = (server as any).tool.bind(server) as (
@@ -109,10 +121,15 @@ export async function registerVulnTools(
       'Supports pagination and can return either full CPE details or just the total count.',
     CpeLookupSchema.shape,
     async (args: unknown) => {
-      const { product, count, skip, limit } = CpeLookupSchema.parse(args);
+      const { product, count, skip, limit, break_token_rule } = CpeLookupSchema.parse(args);
       try {
         const result = await handleCpeLookup(cvedbClient, product, count ?? false, skip ?? 0, limit ?? 1000);
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+        const toolResult = { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+        const tokenCheck = checkTokenLimit(toolResult, maxTokenCall, break_token_rule ?? false);
+        if (!tokenCheck.allowed) {
+          return { content: [{ type: 'text', text: tokenCheck.error ?? 'Token limit exceeded' }], isError: true };
+        }
+        return toolResult;
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };
@@ -128,9 +145,15 @@ export async function registerVulnTools(
     CvesByProductBaseSchema.shape,
     async (args: unknown) => {
       const parsed = CvesByProductSchema.parse(args);
+      const { break_token_rule, ...handlerArgs } = parsed;
       try {
-        const result = await handleCvesByProduct(cvedbClient, parsed);
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+        const result = await handleCvesByProduct(cvedbClient, handlerArgs);
+        const toolResult = { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+        const tokenCheck = checkTokenLimit(toolResult, maxTokenCall, break_token_rule ?? false);
+        if (!tokenCheck.allowed) {
+          return { content: [{ type: 'text', text: tokenCheck.error ?? 'Token limit exceeded' }], isError: true };
+        }
+        return toolResult;
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };

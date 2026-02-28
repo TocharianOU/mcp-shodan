@@ -31,6 +31,7 @@ export async function createShodanMcpServer(
   const validatedConfig = ShodanConfigSchema.parse(config);
   const shodanClient = createShodanClient(validatedConfig);
   const cvedbClient = createCvedbClient(validatedConfig);
+  const maxTokenCall = parseInt(process.env.MAX_TOKEN_CALL ?? '20000', 10);
 
   const server = new McpServer({
     name,
@@ -39,9 +40,9 @@ export async function createShodanMcpServer(
   });
 
   await Promise.all([
-    registerIpTools(server, shodanClient),
+    registerIpTools(server, shodanClient, maxTokenCall),
     registerDnsTools(server, shodanClient),
-    registerVulnTools(server, cvedbClient),
+    registerVulnTools(server, cvedbClient, maxTokenCall),
   ]);
 
   return server;
