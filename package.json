@@ -1,7 +1,7 @@
 {
   "name": "@tocharianou/mcp-shodan",
   "description": "Shodan MCP Server – network reconnaissance, DNS operations, and vulnerability intelligence",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "mcpName": "io.github.TocharianOU/shodan",
   "license": "MIT",
   "author": "TocharianOU",
